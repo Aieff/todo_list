@@ -1,76 +1,143 @@
 "use strict";
-// Previne que suje o escopo global (EEFE)
+// IIFE to preserve code scope
 (function () {
-    // Meu reminder implementara Task além de atribuir os valores unicos do reminder
+    // Enums
+    var NotificationPlatform;
+    (function (NotificationPlatform) {
+        NotificationPlatform["SMS"] = "SMS";
+        NotificationPlatform["EMAIL"] = "EMAIL";
+        NotificationPlatform["PUSH_NOTIFICATION"] = "PUSH_NOTIFICATION";
+    })(NotificationPlatform || (NotificationPlatform = {}));
+    var Mode;
+    (function (Mode) {
+        Mode["TODO"] = "TODO";
+        Mode["REMINDER"] = "REMINDER";
+    })(Mode || (Mode = {}));
+    // Utils
+    var DateUtils = {
+        tomorrow: function () {
+            var tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return tomorrow;
+        },
+        today: function () {
+            return new Date();
+        },
+        formatDate: function (date) {
+            return "".concat(date.getDate(), ".").concat(date.getMonth() + 1, ".").concat(date.getFullYear());
+        },
+    };
+    var UUID = function () {
+        return Math.random().toString(36).substr(2, 9);
+    };
     var Reminder = /** @class */ (function () {
-        // Metodo construtor
-        function Reminder(description, date, notifications) {
-            this.id = '';
-            this.dateCreated = new Date();
-            this.dateUpdated = new Date();
-            this.description = '';
-            this.date = new Date();
-            this.notifications = ['EMAIL'];
+        function Reminder(description, scheduleDate, notifications) {
+            this.id = UUID();
+            this.dateCreated = DateUtils.today();
+            this.dateUpdated = DateUtils.today();
+            this.description = "";
+            this.scheduleDate = DateUtils.tomorrow();
+            this.notifications = [NotificationPlatform.EMAIL];
             this.description = description;
-            this.date = date;
+            this.scheduleDate = scheduleDate;
             this.notifications = notifications;
         }
-        // Metodo render retorna string de (this)
         Reminder.prototype.render = function () {
-            return JSON.stringify(this);
+            return "\n        ---> Reminder <--- \n\n        Description: ".concat(this.description, " \n\n        Notify by ").concat(this.notifications.join(" and "), " in ").concat(DateUtils.formatDate(this.scheduleDate), " \n\n        Created: ").concat(DateUtils.formatDate(this.dateCreated), " Last Update: ").concat(DateUtils.formatDate(this.dateUpdated), "\n        ");
         };
         return Reminder;
     }());
-    // Todo ira implementar Task com seus valores unicos
     var Todo = /** @class */ (function () {
-        // Metodo construtor
         function Todo(description) {
-            this.id = '';
-            this.dateCreated = new Date();
-            this.dateUpdated = new Date();
-            this.description = '';
+            this.id = UUID();
+            this.dateCreated = DateUtils.today();
+            this.dateUpdated = DateUtils.today();
+            this.description = "";
             this.done = false;
             this.description = description;
         }
-        // Metodo render retorna string de (this)
         Todo.prototype.render = function () {
-            return JSON.stringify(this);
+            var doneLabel = this.done ? "Completed" : "In Progress";
+            return "\n        ---> TODO <--- \n\n        Description: ".concat(this.description, " \n\n        Status: ").concat(doneLabel, " \n\n        Created: ").concat(DateUtils.formatDate(this.dateCreated), " Last Update: ").concat(DateUtils.formatDate(this.dateUpdated), "\n        ");
         };
         return Todo;
     }());
-    // Irao representar meu TODO e Reminder
-    var todo = new Todo('Todo criado com a classe');
-    var reminder = new Reminder('Reminder criado com a classe', new Date(), ['EMAIL']);
-    // View renderiza o TODO e Reminder
     var taskView = {
-        // Function render (recebe lista de tasks) criando objeto
-        render: function (tasks) {
-            // Ira exibir e limpar nossa lista
-            var taskList = document.getElementById('tasksList');
-            while (taskList === null || taskList === void 0 ? void 0 : taskList.firstChild) {
-                taskList.removeChild(taskList.firstChild);
+        getTodo: function (form) {
+            var todoDescription = form.todoDescription.value;
+            form.reset();
+            return new Todo(todoDescription);
+        },
+        getReminder: function (form) {
+            var reminderNotifications = [
+                form.notification.value,
+            ];
+            var reminderDate = new Date(form.scheduleDate.value);
+            var reminderDescription = form.reminderDescription.value;
+            form.reset();
+            return new Reminder(reminderDescription, reminderDate, reminderNotifications);
+        },
+        render: function (tasks, mode) {
+            // Clear view
+            var tasksList = document.getElementById("tasksList");
+            while (tasksList === null || tasksList === void 0 ? void 0 : tasksList.firstChild) {
+                tasksList.removeChild(tasksList.firstChild);
             }
-            // Iremos receber uma task apos cada interação em nosso foreach
+            // Render Tasks
             tasks.forEach(function (task) {
-                var li = document.createElement('li');
-                // Tranforma o retorno da nossa task em String
+                var li = document.createElement("LI");
                 var textNode = document.createTextNode(task.render());
                 li.appendChild(textNode);
-                taskList === null || taskList === void 0 ? void 0 : taskList.appendChild(li);
+                tasksList === null || tasksList === void 0 ? void 0 : tasksList.appendChild(li);
             });
+            // Render form mode
+            var todoSet = document.getElementById("todoSet");
+            var reminderSet = document.getElementById("reminderSet");
+            if (mode === Mode.TODO) {
+                todoSet === null || todoSet === void 0 ? void 0 : todoSet.setAttribute("style", "display: block;");
+                todoSet === null || todoSet === void 0 ? void 0 : todoSet.removeAttribute("disabled");
+                reminderSet === null || reminderSet === void 0 ? void 0 : reminderSet.setAttribute("style", "display: none;");
+                reminderSet === null || reminderSet === void 0 ? void 0 : reminderSet.setAttribute("disabled", "true");
+            }
+            else {
+                reminderSet === null || reminderSet === void 0 ? void 0 : reminderSet.setAttribute("style", "display: block;");
+                reminderSet === null || reminderSet === void 0 ? void 0 : reminderSet.removeAttribute("disabled");
+                todoSet === null || todoSet === void 0 ? void 0 : todoSet.setAttribute("style", "display: none;");
+                todoSet === null || todoSet === void 0 ? void 0 : todoSet.setAttribute("disabled", "true");
+            }
         },
     };
-    // Garante quando sera renderizada e armazenada em memoria nossas tasks
+    // Controllers
     var TaskController = function (view) {
-        var _a;
-        var tasks = [todo, reminder];
-        // Funcao que ira ser passada ao nosso evento
-        var handleEvent = function (event) {
+        var _a, _b;
+        var tasks = [];
+        var mode = Mode.TODO;
+        var handleTaskCreate = function (event) {
             event.preventDefault();
-            view.render(tasks);
+            var form = event.target;
+            switch (mode) {
+                case Mode.TODO:
+                    tasks.push(view.getTodo(form));
+                    break;
+                case Mode.REMINDER:
+                    tasks.push(view.getReminder(form));
+                    break;
+            }
+            view.render(tasks, mode);
         };
-        // Decide quando renderizar nossa lista
-        (_a = document.getElementById('taskForm')) === null || _a === void 0 ? void 0 : _a.addEventListener('submit', handleEvent);
+        var handleModeToggle = function () {
+            switch (mode) {
+                case Mode.TODO:
+                    mode = Mode.REMINDER;
+                    break;
+                case Mode.REMINDER:
+                    mode = Mode.TODO;
+                    break;
+            }
+            view.render(tasks, mode);
+        };
+        (_a = document.getElementById("toggleMode")) === null || _a === void 0 ? void 0 : _a.addEventListener("click", handleModeToggle);
+        (_b = document.getElementById("taskForm")) === null || _b === void 0 ? void 0 : _b.addEventListener("submit", handleTaskCreate);
     };
     TaskController(taskView);
 })();
